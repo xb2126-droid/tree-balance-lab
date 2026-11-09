@@ -288,6 +288,7 @@
             ...preview,
             key,
             predicted: false,
+            attempts: 0,
             stageIndex: -1,
             stageLabel: "Rotation ready"
         };
@@ -310,10 +311,17 @@
     function answerPrediction(guess) {
         if (!state.pending || state.pending.predicted) return;
         const pending = state.pending;
+        pending.attempts += 1;
         const isCorrect = guess === pending.type;
+        if (!isCorrect && pending.attempts === 1) {
+            elements.predictionFeedback.textContent = "Not quite. Take another look and try one more time.";
+            elements.predictionFeedback.style.color = "#a64b37";
+            return;
+        }
+
         elements.predictionFeedback.textContent = isCorrect
             ? `Correct — ${ROTATION_NAMES[pending.type]} is needed. Step through the ${pending.type} rotation below.`
-            : `Not quite. This is a ${ROTATION_NAMES[pending.type]} case. Step through the correct rotation below.`;
+            : `Not quite. The correct option is ${ROTATION_NAMES[pending.type]}. Step through the ${pending.type} rotation below.`;
         elements.predictionFeedback.style.color = isCorrect ? "#13745e" : "#a64b37";
         elements.predictionContext.textContent =
             `The first unbalanced node is ${pending.pivotKey}. Follow the tree as AVL performs the ${pending.type} rotation.`;
