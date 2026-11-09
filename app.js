@@ -47,7 +47,7 @@
         autoplayTimer: null
     };
     const activeTreeAnimations = new WeakMap();
-    const ROTATION_ANIMATION_MS = 620;
+    const ROTATION_ANIMATION_MS = 820;
 
     function height(node) {
         return node ? 1 + Math.max(height(node.left), height(node.right)) : 0;
@@ -189,8 +189,6 @@
         stopAutoplay();
         activeTreeAnimations.get(elements.bstVisual)?.();
         activeTreeAnimations.get(elements.avlVisual)?.();
-        window.clearAVLTree3D?.(elements.bstVisual);
-        window.clearAVLTree3D?.(elements.avlVisual);
         state.sequence = sequence;
         state.nextIndex = 0;
         state.bstRoot = null;
@@ -267,6 +265,7 @@
         const retained = new Set();
         const removedEdges = [];
         const animatedNodes = new Set();
+        const nodeArcs = new Map();
 
         for (const child of oldChildren) {
             if (child.tagName === "line") {
@@ -277,13 +276,28 @@
         }
 
         for (const target of targetChildren) {
+            if (target.tagName !== "circle") continue;
+            const key = target.getAttribute("data-key");
+            const current = oldByTagAndKey.get(`circle\u0000${key}`);
+            if (!current) continue;
+            const dx = Number(target.getAttribute("cx")) - Number(current.getAttribute("cx"));
+            const dy = Number(target.getAttribute("cy")) - Number(current.getAttribute("cy"));
+            if (dx !== 0 || dy !== 0) {
+                nodeArcs.set(key, Math.min(18, Math.max(10, Math.hypot(dx, dy) * 0.1)));
+            }
+        }
+
+        for (const target of targetChildren) {
             let existing;
             if (target.tagName === "line") {
                 const edgeKey = `${target.getAttribute("data-from-key")}\u0000${target.getAttribute("data-to-key")}`;
                 existing = oldByEdge.get(edgeKey);
                 if (existing) {
                     retained.add(existing);
-                    animateAttributes(existing, target, numberAttributes.line, animations, animatedNodes);
+                    animateAttributes(existing, target, numberAttributes.line, animations, animatedNodes, {
+                        fromArc: nodeArcs.get(target.getAttribute("data-from-key")) || 0,
+                        toArc: nodeArcs.get(target.getAttribute("data-to-key")) || 0
+                    });
                 } else {
                     existing = target.cloneNode(true);
                     existing.setAttribute("opacity", "0");
@@ -294,7 +308,10 @@
                 existing = oldByTagAndKey.get(`${target.tagName}\u0000${key}`);
                 if (existing) {
                     retained.add(existing);
-                    animateAttributes(existing, target, numberAttributes[target.tagName], animations, animatedNodes);
+                    animateAttributes(existing, target, numberAttributes[target.tagName], animations, animatedNodes, {
+                        arc: nodeArcs.get(key) || 0,
+                        pulse: target.tagName === "circle" && nodeArcs.has(key)
+                    });
                 } else {
                     existing = target.cloneNode(true);
                     const targetAttributes = numberAttributes[target.tagName];
@@ -341,7 +358,17 @@
             for (const animation of animations) {
                 for (const [attribute, fromValue] of Object.entries(animation.from)) {
                     const toValue = animation.to[attribute];
-                    animation.element.setAttribute(attribute, String(fromValue + (toValue - fromValue) * eased));
+                    let value = fromValue + (toValue - fromValue) * eased;
+                    if (animation.arc && (attribute === "y" || attribute === "cy")) {
+                        value -= Math.sin(Math.PI * progress) * animation.arc;
+                    } else if (animation.pulse && attribute === "r") {
+                        value += Math.sin(Math.PI * progress) * 2.8;
+                    } else if (attribute === "y1" && animation.fromArc) {
+                        value -= Math.sin(Math.PI * progress) * animation.fromArc;
+                    } else if (attribute === "y2" && animation.toArc) {
+                        value -= Math.sin(Math.PI * progress) * animation.toArc;
+                    }
+                    animation.element.setAttribute(attribute, String(value));
                 }
             }
 
@@ -361,7 +388,7 @@
         frameId = requestAnimationFrame(tick);
     }
 
-    function animateAttributes(element, target, attributes, animations, animatedNodes) {
+    function animateAttributes(element, target, attributes, animations, animatedNodes, effects = {}) {
         const from = {};
         const to = {};
         for (const attribute of attributes) {
@@ -374,12 +401,12 @@
                 element.setAttribute(attribute.name, attribute.value);
             }
         }
-        if (element.tagName === "circle" && (from.cx !== to.cx || from.cy !== to.cy)) {
+        if (element.tagName === "circle" && effects.pulse) {
             element.classList.remove("rotation-moving-node");
             element.classList.add("rotation-moving-node");
             animatedNodes.add(element);
         }
-        animations.push({ element, from, to });
+        animations.push({ element, from, to, ...effects });
     }
 
     function updateMetrics() {

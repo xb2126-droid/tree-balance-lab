@@ -406,25 +406,15 @@ a:focus-visible {
     background-size: 16px 16px;
 }
 
-.tree-visual svg,
-.tree-visual canvas.tree-canvas {
+.tree-visual svg {
     display: block;
     flex: 0 0 auto;
     max-width: none;
     overflow: visible;
 }
 
-.tree-visual canvas.tree-canvas {
-    cursor: grab;
-    touch-action: pan-y;
-}
-
-.tree-visual canvas.tree-canvas.is-dragging {
-    cursor: grabbing;
-}
-
 .tree-visual circle.rotation-moving-node {
-    animation: rotation-node-glow 620ms ease-in-out;
+    animation: rotation-node-glow 820ms ease-in-out;
 }
 
 @keyframes rotation-node-glow {
@@ -434,7 +424,7 @@ a:focus-visible {
     }
 
     45% {
-        filter: drop-shadow(0 0 9px rgb(49 94 232 / 75%));
+        filter: drop-shadow(0 0 6px rgb(49 94 232 / 55%));
     }
 }
 
