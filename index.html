@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#f5f7fb">
+    <title>Tree Balance Lab</title>
+    <link rel="stylesheet" href="styles.css">
+    <script defer src="avl.js"></script>
+    <script defer src="visualize.js"></script>
+    <script defer src="app.js"></script>
+</head>
+<body>
+    <header class="site-header">
+        <a class="brand" href="#" aria-label="Tree Balance Lab home">
+            <span class="brand-mark" aria-hidden="true">T</span>
+            <span>Tree Balance Lab</span>
+        </a>
+        <span class="header-note">An interactive guide to tree balance</span>
+    </header>
+
+    <main class="page-shell">
+        <section class="intro">
+            <p class="eyebrow">DATA STRUCTURES, MADE VISIBLE</p>
+            <h1>Same numbers.<br><span>Two very different trees.</span></h1>
+            <p class="intro-copy">
+                Insert the same sequence into a Binary Search Tree and an AVL Tree.
+                Predict the rotation, then step through how AVL keeps its height in check.
+            </p>
+        </section>
+
+        <section class="panel controls-panel" aria-labelledby="sequence-heading">
+            <div class="section-heading">
+                <div>
+                    <p class="eyebrow">01 / SET UP</p>
+                    <h2 id="sequence-heading">Choose an input sequence</h2>
+                </div>
+                <span class="sequence-count" id="sequence-count">0 values</span>
+            </div>
+            <form id="sequence-form" class="sequence-form">
+                <label class="sr-only" for="sequence-input">Numbers to insert</label>
+                <input id="sequence-input" type="text" inputmode="decimal"
+                    placeholder="e.g. 30, 20, 10, 25, 28" autocomplete="off">
+                <button class="button button-primary" type="submit">Use sequence</button>
+                <button class="button button-secondary" id="random-button" type="button">Generate random</button>
+            </form>
+            <div class="sequence-preview" aria-live="polite">
+                <span class="preview-label">INSERT ORDER</span>
+                <div id="sequence-chips" class="sequence-chips">
+                    <span class="muted-copy">Your sequence will appear here.</span>
+                </div>
+            </div>
+            <p id="input-message" class="input-message" role="status"></p>
+        </section>
+
+        <section class="toolbar" aria-label="Insertion controls">
+            <div class="progress-block">
+                <span class="preview-label">PROGRESS</span>
+                <strong id="progress-label">Ready to begin</strong>
+            </div>
+            <div class="toolbar-actions">
+                <button class="button button-secondary" id="reset-button" type="button">Reset trees</button>
+                <button class="button button-secondary" id="autoplay-button" type="button" disabled>Auto-play</button>
+                <button class="button button-secondary" id="step-button" type="button" disabled>Step forward</button>
+                <button class="button button-primary" id="next-button" type="button" disabled>Insert next value <span aria-hidden="true">→</span></button>
+            </div>
+        </section>
+
+        <section id="prediction-panel" class="panel prediction-panel" aria-labelledby="prediction-heading" hidden>
+            <div class="prediction-copy">
+                <p class="eyebrow">YOUR TURN / PREDICT BEFORE ROTATING</p>
+                <h2 id="prediction-heading">Which rotation will balance this tree?</h2>
+                <p id="prediction-context">The BST has inserted the value. Take a look at the unbalanced AVL preview, then make your prediction.</p>
+            </div>
+            <fieldset id="prediction-options" class="rotation-options">
+                <legend class="sr-only">Choose the AVL rotation</legend>
+                <button type="button" data-rotation="LL">LL <span>single right</span></button>
+                <button type="button" data-rotation="LR">LR <span>left, then right</span></button>
+                <button type="button" data-rotation="RR">RR <span>single left</span></button>
+                <button type="button" data-rotation="RL">RL <span>right, then left</span></button>
+            </fieldset>
+            <p id="prediction-feedback" class="prediction-feedback" role="status"></p>
+        </section>
+
+        <section class="tree-grid" aria-label="Side-by-side tree comparison">
+            <article class="panel tree-card bst-card">
+                <div class="tree-card-heading">
+                    <div>
+                        <p class="eyebrow">NO SELF-BALANCING</p>
+                        <h2>Binary Search Tree</h2>
+                    </div>
+                    <span class="tree-badge bst-badge">BST</span>
+                </div>
+                <div id="bst-visual" class="tree-visual" aria-live="polite">
+                    <p class="empty-state">Insert a number to grow the tree.</p>
+                </div>
+                <div class="metrics" id="bst-metrics" aria-label="BST statistics">
+                    <div><span>Height</span><strong id="bst-height">—</strong></div>
+                    <div><span>Search depth</span><strong id="bst-depth">—</strong></div>
+                    <div><span>Comparisons</span><strong id="bst-comparisons">—</strong></div>
+                </div>
+            </article>
+
+            <article class="panel tree-card avl-card">
+                <div class="tree-card-heading">
+                    <div>
+                        <p class="eyebrow">SELF-BALANCING</p>
+                        <h2>AVL Tree</h2>
+                    </div>
+                    <span class="tree-badge avl-badge">AVL</span>
+                </div>
+                <div id="avl-visual" class="tree-visual" aria-live="polite">
+                    <p class="empty-state">The AVL tree will rebalance as needed.</p>
+                </div>
+                <div class="metrics" id="avl-metrics" aria-label="AVL statistics">
+                    <div><span>Height</span><strong id="avl-height">—</strong></div>
+                    <div><span>Search depth</span><strong id="avl-depth">—</strong></div>
+                    <div><span>Comparisons</span><strong id="avl-comparisons">—</strong></div>
+                </div>
+            </article>
+        </section>
+
+        <section class="panel rotation-panel" aria-labelledby="rotation-heading">
+            <div class="section-heading">
+                <div>
+                    <p class="eyebrow">02 / LEARN THE MOVES</p>
+                    <h2 id="rotation-heading">Four ways to restore balance</h2>
+                </div>
+                <p class="section-aside">A rotation changes links, not the sorted order.</p>
+            </div>
+            <div class="rotation-guide">
+                <div><span class="guide-code">LL</span><strong>Left-left</strong><span>Right rotation</span></div>
+                <div><span class="guide-code">LR</span><strong>Left-right</strong><span>Left, then right</span></div>
+                <div><span class="guide-code">RR</span><strong>Right-right</strong><span>Left rotation</span></div>
+                <div><span class="guide-code">RL</span><strong>Right-left</strong><span>Right, then left</span></div>
+            </div>
+        </section>
+        <footer>Tree Balance Lab <span>·</span> Learn by predicting, then see the structure change.</footer>
+    </main>
+</body>
+</html>
