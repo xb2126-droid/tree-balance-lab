@@ -406,11 +406,21 @@ a:focus-visible {
     background-size: 16px 16px;
 }
 
-.tree-visual svg {
+.tree-visual svg,
+.tree-visual canvas.tree-canvas {
     display: block;
     flex: 0 0 auto;
     max-width: none;
     overflow: visible;
+}
+
+.tree-visual canvas.tree-canvas {
+    cursor: grab;
+    touch-action: pan-y;
+}
+
+.tree-visual canvas.tree-canvas.is-dragging {
+    cursor: grabbing;
 }
 
 .tree-visual circle.rotation-moving-node {

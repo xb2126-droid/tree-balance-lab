@@ -189,6 +189,8 @@
         stopAutoplay();
         activeTreeAnimations.get(elements.bstVisual)?.();
         activeTreeAnimations.get(elements.avlVisual)?.();
+        window.clearAVLTree3D?.(elements.bstVisual);
+        window.clearAVLTree3D?.(elements.avlVisual);
         state.sequence = sequence;
         state.nextIndex = 0;
         state.bstRoot = null;
@@ -238,6 +240,7 @@
 
     function renderTree(container, tree, animate = false, onComplete) {
         activeTreeAnimations.get(container)?.();
+        if (window.renderAVLTree3D?.(container, tree, animate, onComplete)) return;
         if (!tree) {
             container.innerHTML = '<p class="empty-state">Insert a number to grow the tree.</p>';
             return;
