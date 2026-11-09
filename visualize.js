@@ -102,15 +102,15 @@
                 if (child) {
                     const childPosition = positions.get(child);
                     edges.push(
-                        `<line x1="${position.x}" y1="${position.y}" x2="${childPosition.x}" y2="${childPosition.y}" stroke="#64748b" stroke-width="2"/>`
+                        `<line data-from-key="${escapeXml(node.key)}" data-to-key="${escapeXml(child.key)}" x1="${position.x}" y1="${position.y}" x2="${childPosition.x}" y2="${childPosition.y}" stroke="#64748b" stroke-width="2"/>`
                     );
                 }
             }
             circles.push(
-                `<circle cx="${position.x}" cy="${position.y}" r="${settings.radius}" fill="#dbeafe" stroke="#2563eb" stroke-width="2"/>`
+                `<circle data-key="${escapeXml(node.key)}" cx="${position.x}" cy="${position.y}" r="${settings.radius}" fill="#dbeafe" stroke="#2563eb" stroke-width="2"/>`
             );
             labels.push(
-                `<text x="${position.x}" y="${position.y}" text-anchor="middle" dominant-baseline="central" font-family="sans-serif" font-size="14" fill="#172554">${escapeXml(node.key)}</text>`
+                `<text data-key="${escapeXml(node.key)}" x="${position.x}" y="${position.y}" text-anchor="middle" dominant-baseline="central" font-family="sans-serif" font-size="14" fill="#172554">${escapeXml(node.key)}</text>`
             );
         }
 

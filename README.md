@@ -11,5 +11,5 @@ Open `index.html` in a browser. The project uses plain HTML, CSS, and JavaScript
 - Enter a custom sequence of unique numbers or generate a random sequence.
 - Insert values into the BST and AVL tree side by side.
 - Predict LL, LR, RR, or RL rotations before the AVL tree rebalances.
-- Step through rotations or use auto-play.
+- Watch nodes and edges animate through each rotation step, or use auto-play.
 - Compare tree height, the most recently inserted value's search depth, and total insertion comparisons.

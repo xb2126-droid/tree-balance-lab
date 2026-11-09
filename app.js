@@ -46,6 +46,8 @@
         pending: null,
         autoplayTimer: null
     };
+    const activeTreeAnimations = new WeakMap();
+    const ROTATION_ANIMATION_MS = 620;
 
     function height(node) {
         return node ? 1 + Math.max(height(node.left), height(node.right)) : 0;
@@ -185,6 +187,8 @@
 
     function setSequence(sequence) {
         stopAutoplay();
+        activeTreeAnimations.get(elements.bstVisual)?.();
+        activeTreeAnimations.get(elements.avlVisual)?.();
         state.sequence = sequence;
         state.nextIndex = 0;
         state.bstRoot = null;
@@ -222,8 +226,8 @@
         elements.next.disabled = state.sequence.length === 0
             || state.nextIndex >= state.sequence.length
             || Boolean(waitingForPrediction);
-        elements.step.disabled = !showingRotation;
-        elements.autoplay.disabled = !showingRotation;
+        elements.step.disabled = !showingRotation || state.pending.animating;
+        elements.autoplay.disabled = !showingRotation || state.pending.animating;
         elements.next.innerHTML = 'Insert next value <span aria-hidden="true">→</span>';
         elements.progress.textContent = state.pending
             ? (waitingForPrediction ? `Predict the rotation for ${state.pending.key}` : state.pending.stageLabel)
@@ -232,12 +236,140 @@
                 : "Ready to begin";
     }
 
-    function renderTree(container, tree) {
+    function renderTree(container, tree, animate = false, onComplete) {
+        activeTreeAnimations.get(container)?.();
         if (!tree) {
             container.innerHTML = '<p class="empty-state">Insert a number to grow the tree.</p>';
             return;
         }
-        container.innerHTML = visualizeAVL(tree);
+        const markup = visualizeAVL(tree);
+        const currentSvg = container.querySelector("svg");
+        if (!animate || !currentSvg || window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
+            container.innerHTML = markup;
+            onComplete?.();
+            return;
+        }
+
+        const targetSvg = new DOMParser().parseFromString(markup, "image/svg+xml").documentElement;
+        const targetChildren = Array.from(targetSvg.children);
+        const oldChildren = Array.from(currentSvg.children);
+        const oldByEdge = new Map();
+        const oldByTagAndKey = new Map();
+        const numberAttributes = {
+            line: ["x1", "y1", "x2", "y2"],
+            circle: ["cx", "cy", "r"],
+            text: ["x", "y"]
+        };
+        const animations = [];
+        const retained = new Set();
+        const removedEdges = [];
+
+        for (const child of oldChildren) {
+            if (child.tagName === "line") {
+                oldByEdge.set(`${child.getAttribute("data-from-key")}\u0000${child.getAttribute("data-to-key")}`, child);
+            } else if (child.hasAttribute("data-key")) {
+                oldByTagAndKey.set(`${child.tagName}\u0000${child.getAttribute("data-key")}`, child);
+            }
+        }
+
+        for (const target of targetChildren) {
+            let existing;
+            if (target.tagName === "line") {
+                const edgeKey = `${target.getAttribute("data-from-key")}\u0000${target.getAttribute("data-to-key")}`;
+                existing = oldByEdge.get(edgeKey);
+                if (existing) {
+                    retained.add(existing);
+                    animateAttributes(existing, target, numberAttributes.line, animations);
+                } else {
+                    existing = target.cloneNode(true);
+                    existing.setAttribute("opacity", "0");
+                    animations.push({ element: existing, from: { opacity: 0 }, to: { opacity: 1 } });
+                }
+            } else {
+                const key = target.getAttribute("data-key");
+                existing = oldByTagAndKey.get(`${target.tagName}\u0000${key}`);
+                if (existing) {
+                    retained.add(existing);
+                    animateAttributes(existing, target, numberAttributes[target.tagName], animations);
+                } else {
+                    existing = target.cloneNode(true);
+                    const targetAttributes = numberAttributes[target.tagName];
+                    if (target.tagName === "circle") existing.setAttribute("r", "0");
+                    existing.setAttribute("opacity", "0");
+                    animations.push({
+                        element: existing,
+                        from: Object.fromEntries(targetAttributes.map((name) => [name, Number(existing.getAttribute(name) || 0)]).concat([["opacity", 0]])),
+                        to: Object.fromEntries(targetAttributes.map((name) => [name, Number(target.getAttribute(name) || 0)]).concat([["opacity", 1]]))
+                    });
+                }
+            }
+            currentSvg.appendChild(existing);
+        }
+
+        for (const child of oldChildren) {
+            if (!retained.has(child) && child.tagName === "line") {
+                removedEdges.push(child);
+                animations.push({
+                    element: child,
+                    from: { opacity: Number(child.getAttribute("opacity") || 1) },
+                    to: { opacity: 0 }
+                });
+            } else if (!retained.has(child) && child.tagName !== "line") {
+                child.remove();
+            }
+        }
+
+        for (const attribute of ["width", "height", "viewBox"]) {
+            currentSvg.setAttribute(attribute, targetSvg.getAttribute(attribute));
+        }
+
+        const start = performance.now();
+        let frameId;
+        let cancelled = false;
+        const cancel = () => {
+            cancelled = true;
+            cancelAnimationFrame(frameId);
+            if (activeTreeAnimations.get(container) === cancel) activeTreeAnimations.delete(container);
+        };
+        activeTreeAnimations.set(container, cancel);
+
+        function tick(now) {
+            if (cancelled) return;
+            const progress = Math.min(1, (now - start) / ROTATION_ANIMATION_MS);
+            const eased = 1 - (1 - progress) ** 3;
+            for (const animation of animations) {
+                for (const [attribute, fromValue] of Object.entries(animation.from)) {
+                    const toValue = animation.to[attribute];
+                    animation.element.setAttribute(attribute, String(fromValue + (toValue - fromValue) * eased));
+                }
+            }
+
+            if (progress < 1) {
+                frameId = requestAnimationFrame(tick);
+                return;
+            }
+            removedEdges.forEach((edge) => edge.remove());
+            if (activeTreeAnimations.get(container) === cancel) activeTreeAnimations.delete(container);
+            onComplete?.();
+        }
+
+        frameId = requestAnimationFrame(tick);
+    }
+
+    function animateAttributes(element, target, attributes, animations) {
+        const from = {};
+        const to = {};
+        for (const attribute of attributes) {
+            from[attribute] = Number(element.getAttribute(attribute));
+            to[attribute] = Number(target.getAttribute(attribute));
+            element.setAttribute(attribute, target.getAttribute(attribute));
+        }
+        for (const attribute of Array.from(target.attributes)) {
+            if (!attributes.includes(attribute.name)) {
+                element.setAttribute(attribute.name, attribute.value);
+            }
+        }
+        animations.push({ element, from, to });
     }
 
     function updateMetrics() {
@@ -333,6 +465,7 @@
         state.avlLastDepth = findDepth(state.avlTree.root, pending.key);
         pending.stages.push(cloneTree(state.avlTree.root));
         pending.stageIndex = 0;
+        pending.animating = false;
         pending.stageLabel = pending.type.length === 2 && pending.type[0] !== pending.type[1]
             ? `${pending.type} · Unbalanced tree (${pending.stageIndex + 1} of ${pending.stages.length + 1})`
             : `${pending.type} · Unbalanced tree`;
@@ -363,11 +496,15 @@
             pending.stageLabel = isFinal
                 ? `${pending.type} · Balanced tree`
                 : `${pending.type} · First rotation (${pending.stageIndex} of 2)`;
-            renderTree(elements.avlVisual, pending.stages[pending.stageIndex]);
+            pending.animating = true;
             updateMetricsForDisplayedStage(pending.stages[pending.stageIndex]);
             updateControls();
-            if (isFinal) completeRotation();
-            else if (!isIntermediate) completeRotation();
+            renderTree(elements.avlVisual, pending.stages[pending.stageIndex], true, () => {
+                if (state.pending !== pending) return;
+                pending.animating = false;
+                updateControls();
+                if (isFinal || !isIntermediate) completeRotation();
+            });
             return;
         }
         completeRotation();
