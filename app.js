@@ -263,6 +263,7 @@
         const animations = [];
         const retained = new Set();
         const removedEdges = [];
+        const animatedNodes = new Set();
 
         for (const child of oldChildren) {
             if (child.tagName === "line") {
@@ -279,7 +280,7 @@
                 existing = oldByEdge.get(edgeKey);
                 if (existing) {
                     retained.add(existing);
-                    animateAttributes(existing, target, numberAttributes.line, animations);
+                    animateAttributes(existing, target, numberAttributes.line, animations, animatedNodes);
                 } else {
                     existing = target.cloneNode(true);
                     existing.setAttribute("opacity", "0");
@@ -290,7 +291,7 @@
                 existing = oldByTagAndKey.get(`${target.tagName}\u0000${key}`);
                 if (existing) {
                     retained.add(existing);
-                    animateAttributes(existing, target, numberAttributes[target.tagName], animations);
+                    animateAttributes(existing, target, numberAttributes[target.tagName], animations, animatedNodes);
                 } else {
                     existing = target.cloneNode(true);
                     const targetAttributes = numberAttributes[target.tagName];
@@ -319,16 +320,13 @@
             }
         }
 
-        for (const attribute of ["width", "height", "viewBox"]) {
-            currentSvg.setAttribute(attribute, targetSvg.getAttribute(attribute));
-        }
-
         const start = performance.now();
         let frameId;
         let cancelled = false;
         const cancel = () => {
             cancelled = true;
             cancelAnimationFrame(frameId);
+            animatedNodes.forEach((node) => node.classList.remove("rotation-moving-node"));
             if (activeTreeAnimations.get(container) === cancel) activeTreeAnimations.delete(container);
         };
         activeTreeAnimations.set(container, cancel);
@@ -348,6 +346,10 @@
                 frameId = requestAnimationFrame(tick);
                 return;
             }
+            for (const attribute of ["width", "height", "viewBox"]) {
+                currentSvg.setAttribute(attribute, targetSvg.getAttribute(attribute));
+            }
+            animatedNodes.forEach((node) => node.classList.remove("rotation-moving-node"));
             removedEdges.forEach((edge) => edge.remove());
             if (activeTreeAnimations.get(container) === cancel) activeTreeAnimations.delete(container);
             onComplete?.();
@@ -356,7 +358,7 @@
         frameId = requestAnimationFrame(tick);
     }
 
-    function animateAttributes(element, target, attributes, animations) {
+    function animateAttributes(element, target, attributes, animations, animatedNodes) {
         const from = {};
         const to = {};
         for (const attribute of attributes) {
@@ -368,6 +370,11 @@
             if (!attributes.includes(attribute.name)) {
                 element.setAttribute(attribute.name, attribute.value);
             }
+        }
+        if (element.tagName === "circle" && (from.cx !== to.cx || from.cy !== to.cy)) {
+            element.classList.remove("rotation-moving-node");
+            element.classList.add("rotation-moving-node");
+            animatedNodes.add(element);
         }
         animations.push({ element, from, to });
     }
@@ -473,7 +480,7 @@
         renderTree(elements.avlVisual, pending.stages[0]);
         updateMetricsForDisplayedStage(pending.stages[0]);
         updateControls();
-        elements.step.focus();
+        stepRotation();
     }
 
     function updateMetricsForDisplayedStage(tree) {

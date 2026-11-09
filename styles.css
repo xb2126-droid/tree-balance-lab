@@ -413,6 +413,21 @@ a:focus-visible {
     overflow: visible;
 }
 
+.tree-visual circle.rotation-moving-node {
+    animation: rotation-node-glow 620ms ease-in-out;
+}
+
+@keyframes rotation-node-glow {
+    0%,
+    100% {
+        filter: drop-shadow(0 0 0 rgb(49 94 232 / 0%));
+    }
+
+    45% {
+        filter: drop-shadow(0 0 9px rgb(49 94 232 / 75%));
+    }
+}
+
 .empty-state {
     width: 100%;
     color: #929db0;
