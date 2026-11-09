@@ -219,10 +219,12 @@
     function updateControls() {
         const waitingForPrediction = state.pending && !state.pending.predicted;
         const showingRotation = state.pending && state.pending.predicted;
-        elements.next.disabled = state.sequence.length === 0 || state.nextIndex >= state.sequence.length || Boolean(state.pending);
+        elements.next.disabled = state.sequence.length === 0
+            || state.nextIndex >= state.sequence.length
+            || Boolean(waitingForPrediction);
         elements.step.disabled = !showingRotation;
         elements.autoplay.disabled = !showingRotation;
-        elements.next.innerHTML = state.pending ? "Finish rotation first" : 'Insert next value <span aria-hidden="true">→</span>';
+        elements.next.innerHTML = 'Insert next value <span aria-hidden="true">→</span>';
         elements.progress.textContent = state.pending
             ? (waitingForPrediction ? `Predict the rotation for ${state.pending.key}` : state.pending.stageLabel)
             : state.sequence.length
@@ -258,7 +260,12 @@
     }
 
     function insertNext() {
-        if (state.pending || state.nextIndex >= state.sequence.length) return;
+        if (state.pending && !state.pending.predicted) return;
+        if (state.pending) {
+            stopAutoplay();
+            completeRotation();
+        }
+        if (state.nextIndex >= state.sequence.length) return;
         const key = state.sequence[state.nextIndex];
         const preview = getRotationPreview(state.avlTree.root, key);
         const bstResult = insertBST(key);
